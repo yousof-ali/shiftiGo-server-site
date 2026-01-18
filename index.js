@@ -49,13 +49,20 @@ async function run() {
     // get all parcel
     app.get("/parcels", async (req, res) => {
       try {
-        const result = await parcelCollection.find().toArray();
+        const queryEmail = req.query.email
+        const query = queryEmail ? {createdBy:queryEmail} : {};
+        const option = {
+          sort:{createdAt:-1},
+        }
+        const result = await parcelCollection.find(query,option).toArray();
         res.status(200).send(result);
       } catch (error) {
         console.error("Failed to get", error);
         res.status(500).send({ message: "Failed to get parcels" });
       }
     });
+
+   
 
     console.log("Connect with mongoDB successfully!");
 
