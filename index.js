@@ -15,7 +15,7 @@ app.get("/", (req, res) => {
   res.send("ShifiGo server is running");
 });
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.lewcb.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -41,7 +41,7 @@ async function run() {
         const result = await parcelCollection.insertOne(newParcel);
         res.status(201).send(result);
       } catch (error) {
-        console.error("Failed to insert", error);
+        console.error("Failed to Insert", error);
         res.status(500).send({ message: "Failed to insert parcel" });
       }
     });
@@ -49,20 +49,38 @@ async function run() {
     // get all parcel
     app.get("/parcels", async (req, res) => {
       try {
-        const queryEmail = req.query.email
-        const query = queryEmail ? {createdBy:queryEmail} : {};
+        const queryEmail = req.query.email;
+        const query = queryEmail ? { createdBy: queryEmail } : {};
         const option = {
-          sort:{createdAt:-1},
-        }
-        const result = await parcelCollection.find(query,option).toArray();
+          sort: { createdAt: -1 },
+        };
+        const result = await parcelCollection.find(query, option).toArray();
         res.status(200).send(result);
       } catch (error) {
-        console.error("Failed to get", error);
+        console.error("Failed to Get", error);
         res.status(500).send({ message: "Failed to get parcels" });
       }
     });
 
-   
+    // delete single parcelDF
+    app.delete("/parcel/:id", async (req, res) => {
+      const deletedID = req.params.id;
+      if (!ObjectId.isValid(deletedID)) {
+        return res.status(400).json({ message: "Invalid parcel ID" });
+      }
+      try {
+        const query = { _id: new ObjectId(deletedID) };
+        const result = await parcelCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ message: "Parcel not found" });
+        }
+        res.status(200).send(result);
+      } catch (error) {
+        console.error("Failed to Detelte", error);
+        res.status(500).send({ message: "Internal server error " });
+      }
+    });
 
     console.log("Connect with mongoDB successfully!");
 
