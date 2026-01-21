@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 // initial app
 const app = express();
@@ -62,46 +63,54 @@ async function run() {
       }
     });
 
-    // get single parcel 
-    app.get("/parcel/:id",async (req,res) => {
+    // get single parcel
+    app.get("/parcel/:id", async (req, res) => {
       const parcelID = req.params.id;
-      try{
-        const query = {_id:new ObjectId(parcelID)};
+      try {
+        const query = { _id: new ObjectId(parcelID) };
         const result = await parcelCollection.findOne(query);
         res.status(200).send(result);
-      }catch(err){
-        console.error("Faild to get parcel",err);
-        res.status(500).send({message:"Internal server error"})
+      } catch (err) {
+        console.error("Faild to get parcel", err);
+        res.status(500).send({ message: "Internal server error" });
       }
-    } )
+    });
 
     // delete single parcelDF
-    // app.delete("/parcel/:id", async (req, res) => {
-    //   const deletedID = req.params.id;
-    //   try {
-    //     const query = { _id: new ObjectId(deletedID) };
-    //     const result = await parcelCollection.deleteOne(query);
+    app.delete("/parcel/:id", async (req, res) => {
+      const deletedID = req.params.id;
+      try {
+        const query = { _id: new ObjectId(deletedID) };
+        const result = await parcelCollection.deleteOne(query);
 
-    //     if (result.deletedCount === 0) {
-    //       return res.status(404).json({ message: "Parcel not found" });
-    //     }
-    //     res.status(200).send(result);
-    //   } catch (error) {
-    //     console.error("Failed to Detelte", error);
-    //     res.status(500).send({ message: "Internal server error " });
-    //   }
-    // });
-
-    // payment client entent 
-    app.post("/create-payment-intent",async(req,res) => {
-      try{
-        const paymentIntent = await stripe
-
-      }catch(err){
-        console.error(err);
-        res.status(500).send({message:err.message})
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ message: "Parcel not found" });
+        }
+        res.status(200).send(result);
+      } catch (error) {
+        console.error("Failed to Detelte", error);
+        res.status(500).send({ message: "Internal server error " });
       }
-    })
+    });
+
+    // payment client entent
+    app.post("/create-payment-intent", async (req, res) => {
+      try {
+        const amount  = req.body.amount;
+        console.log(amount)
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount * 100, // convert dollars to cents
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.send({ clientSecret: paymentIntent.client_secret });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: err.message });
+      }
+    });
 
     console.log("Connect with mongoDB successfully!");
 
