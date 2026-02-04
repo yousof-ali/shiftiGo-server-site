@@ -14,12 +14,26 @@ const port = process.env.PORT || 5000;
 app.use(
   cors({
     origin: ["http://localhost:5173"],
-    credentials:true
+    credentials: true,
   }),
-  
 );
 app.use(express.json());
 app.use(cookieParser());
+
+const veryfyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized Access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 // simple get route
 app.get("/", (req, res) => {
@@ -51,16 +65,26 @@ async function run() {
     app.post("/jwt-token", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "5h",
       });
 
       res
-      .cookie("token", token, {
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        secure: process.env.NODE_ENV === "production" ? true : false,
-      })
-      .send({ success: true });
+        .cookie("token", token, {
+          httpOnly: true,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          secure: process.env.NODE_ENV === "production" ? true : false,
+        })
+        .send({ success: true, message: "token created!" });
+    });
+
+    app.post("/logout", async (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          secure: process.env.NODE_ENV === "production" ? true : false,
+        })
+        .send({ success: true, message: "token removed!" });
     });
 
     // user
@@ -100,9 +124,12 @@ async function run() {
     });
 
     // get all parcel
-    app.get("/parcels", async (req, res) => {
+    app.get("/parcels", veryfyToken, async (req, res) => {
       try {
         const queryEmail = req.query.email;
+        if(queryEmail !== req.user.email) {
+          return res.status(403).send({message:"Forbidden aaaccess"})
+        }
         const query = queryEmail ? { createdBy: queryEmail } : {};
         const option = {
           sort: { createdAt: -1 },
